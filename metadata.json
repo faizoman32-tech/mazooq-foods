@@ -1,0 +1,6 @@
+{
+  "name": "Mazooq Foods - Taste the smile",
+  "description": "Mazooq Foods: 100% Assam Black Tea, Premium Dates, Gourmet Nuts, Kerala Banana Chips, and Pure Spices. Pure Taste, Built with Trust.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
