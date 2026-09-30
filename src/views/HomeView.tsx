@@ -49,7 +49,9 @@ export const HomeView: React.FC = () => {
   return (
     <div className="flex flex-col w-full">
       {/* SECTION 1: HERO */}
-      <section className="relative w-full bg-[#00290f] overflow-hidden text-[#f6fbf1] pt-12 pb-24 -mt-20 pt-32">
+      <section className="relative w-full bg-[url('/images/Assam_Estates.png')] bg-cover bg-center overflow-hidden text-[#f6fbf1] pt-12 pb-24 -mt-20 pt-32">
+        {/* Deep Forest Green transparent overlay */}
+        <div className="absolute inset-0 bg-[#19281E]/60 pointer-events-none" />
         {/* Ambient Gilded Background Elements */}
         <div className="absolute inset-0 opacity-10 pointer-events-none">
           <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
