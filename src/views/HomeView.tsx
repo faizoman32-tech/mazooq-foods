@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useCart, PageView } from '../context/CartContext';
 import { PRODUCTS, Product } from '../data/products';
 import { COMPANY } from '../data/company';
+import { FloatingLeaves } from '../components/FloatingLeaves';
 import {
   Award,
   Sparkles,
@@ -20,7 +21,7 @@ import {
 } from 'lucide-react';
 
 export const HomeView: React.FC = () => {
-  const { addToCart, setQuickViewProduct, setActivePage, showToast } = useCart();
+  const { addToCart, setQuickViewProduct, setActivePage, showToast, openShopCategory } = useCart();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedVariants, setSelectedVariants] = useState<Record<string, number>>({});
 
@@ -49,17 +50,21 @@ export const HomeView: React.FC = () => {
   return (
     <div className="flex flex-col w-full">
       {/* SECTION 1: HERO */}
-      <section className="relative w-full bg-[url('/images/Assam_Estates.png')] bg-cover bg-center overflow-hidden text-[#f6fbf1] pt-12 pb-24 -mt-20 pt-32">
-        {/* Deep Forest Green transparent overlay */}
-        <div className="absolute inset-0 bg-[#19281E]/60 pointer-events-none" />
-        {/* Ambient Gilded Background Elements */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none">
-          <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <path className="text-[#ffdf93]" d="M0,0 L100,100 M100,0 L0,100" stroke="currentColor" strokeWidth="0.3" />
-            <circle className="text-[#ffdf93]" cx="50" cy="50" fill="none" r="30" stroke="currentColor" strokeWidth="0.3" />
-            <circle className="text-[#ffdf93]" cx="50" cy="50" fill="none" r="45" stroke="currentColor" strokeWidth="0.15" />
-          </svg>
+      <section className="relative w-full bg-[#00290f] overflow-hidden text-[#f6fbf1] pt-12 pb-24 -mt-20 pt-32">
+        {/* Background: Assam tea-estate photo under a deep-green overlay, with floating tea leaves */}
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          <img
+            src="/photos/assam-tea-estate.jpg"
+            alt=""
+            fetchPriority="high"
+            decoding="async"
+            className="hero-zoom absolute inset-0 w-full h-full object-cover"
+          />
+          {/* Green overlay: stronger on the left so the headline stays readable */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#00290f]/95 via-[#00290f]/75 to-[#00290f]/50" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#00290f] via-[#00290f]/20 to-[#00290f]/65" />
         </div>
+        <FloatingLeaves count={16} />
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#104020] rounded-full blur-3xl opacity-50 pointer-events-none" />
         <div className="absolute bottom-10 right-0 w-80 h-80 bg-[#765b00]/20 rounded-full blur-3xl opacity-60 pointer-events-none" />
 
@@ -122,7 +127,8 @@ export const HomeView: React.FC = () => {
               <div className="absolute inset-0 bg-[#f2c027]/15 rounded-2xl filter blur-2xl transform scale-95" />
               <div className="relative bg-white/5 p-4 rounded-2xl shadow-2xl backdrop-blur-sm border border-white/10">
                 <img
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAybDLrLNN8c55HFScWTh6V4bGB1COcUKEYXyI903Xxgwj0fg07uwpNVwm6YliSnBbOT7rVuqp-WIIudaf-JTy5rVvu7Zopko0NZm36F_yO-3VLad-XKZQ0I5mjsp0ZOZwfe5kmtqFjHxeJ4fNK2Vp-GBoW-41Ukc3sGuX6Ve1rfzz29M75iC0kj4PysKglL63s5Ck4KMHd60ok_7hRy41595YT9T1M200NksrIu6RySEab0EtpSbdrngG9-t3uX8isOAE"
+                  loading="eager" fetchPriority="high"
+                  src="/photos/home-tea-pack.jpg"
                   alt="Mazooq Premium Gold Assam Black Tea Packaging"
                   className="w-full h-auto rounded-lg shadow-lg object-contain transform hover:scale-[1.02] transition-transform duration-500"
                 />
@@ -243,12 +249,12 @@ export const HomeView: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Family 1: Tea */}
             <div
-              onClick={() => navigateTo('mazooq-tea')}
+              onClick={() => openShopCategory('tea')}
               className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer border border-[#ebefe6]"
             >
               <div className="h-64 overflow-hidden bg-[#104020] relative">
-                <img
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAj0UGrrCpUB9BiFOlEvVi7EnevX9f92Sn6-uVj9ILb5P9gsawLfifKExinItrfZnu7BoDj-DoXmRL-dIGbOGaPmoE80MTgDAvQHjTdZOrVUqn5fb5dA3d5pPkeLHMYNOOD51axay2xHZkxtrhrhNTJ1p13dgPxn3OvbDZ8J-Ertge2LthOWF9YK9EaEerZssFV-V4jUEq1iaAErjQn5JynBEUNEBM-BeKeojRiMhEkjkTBYqhCGQ571_K7N97RM2wESU4"
+                <img loading="lazy" decoding="async"
+                  src="/photos/home-tea-pack.jpg"
                   alt="Mazooq Assam Tea"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -274,12 +280,12 @@ export const HomeView: React.FC = () => {
 
             {/* Family 2: Dates */}
             <div
-              onClick={() => navigateTo('mazooq-dates')}
+              onClick={() => openShopCategory('dates')}
               className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer border border-[#ebefe6]"
             >
               <div className="h-64 overflow-hidden bg-[#ebefe6] relative">
-                <img
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpVBWCsAdw7Ijvu4BNHSjggsOu4iVxR8Tx3H6rw3au2bF2SpvALnz5F08f-DJSaeJHkMCW2tWIqe4nmolVqN_tQszOKpu6DbGBxrTASqJdzUxY4YBYqtw_Nm7hw7GxYM95Nxc1aXkHRb3KtvlG_KfcLtXftH8fLtHBqC_suwXOf4AQtlFRJCyx6z8IpAVqxnf1Vk5dGGnZL6STr8JrHwD7NcTc1ewnN-d1_voKHWzNOo7dR2SSH4dL4Q"
+                <img loading="lazy" decoding="async"
+                  src="/photos/home-dates.jpg"
                   alt="Mazooq Dates Assortment"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -312,8 +318,8 @@ export const HomeView: React.FC = () => {
               className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer border border-[#ebefe6]"
             >
               <div className="h-64 overflow-hidden bg-[#ebefe6] relative">
-                <img
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWg9usFzJ__iR09vd6gQK3XVp2kOSzExZaMvLa_mroWQ8nn_XiAdOrlCVwbyqsi-T8YSyCCoaVWEod40nDTg7wFf9JoVUBD13fWX72K-mVs0iIAI-zBRsZJMdIdMbgsfLDAi2pP-1NLMthX8LaltQAZZ04pXOm76TqG45TP9zBU6DVp-UO1eIaiiYiC1CusLjsHtX_oDRvnIR8i40mnUPSXzKGCV88pq6p-zAouu5U4hJKMYz-eFhlbw"
+                <img loading="lazy" decoding="async"
+                  src="/photos/home-nuts.jpg"
                   alt="Mazooq Roasted Nuts and Cashews"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -346,8 +352,8 @@ export const HomeView: React.FC = () => {
               className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer border border-[#ebefe6]"
             >
               <div className="h-64 overflow-hidden bg-[#ebefe6] relative">
-                <img
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBClIRZ-lAygkIzfhsI71RdtlXJrqJV9YO40ocUY-QzyGHBITbEi_QmgpQiKAd7TWUtGPxtMGcTmNrSUEWzGTH55hAgQn1JGn5-Ardir7RvzQ8OHHEKY4GCfzNBdW-q1t8vEHMojxyPL7kMW68irU8Cwcze0aRY591qs173SS1r7DSmEhgFuC_fVbqQM_am5Kj909ws4ZMcVGcbpMLbpeDsRjOXwNeWVGqIYlcV_IsU77ldWdIycYf6TQ"
+                <img loading="lazy" decoding="async"
+                  src="/photos/home-snacks.jpg"
                   alt="Mazooq Kerala Banana Chips"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -380,8 +386,8 @@ export const HomeView: React.FC = () => {
               className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer border border-[#ebefe6]"
             >
               <div className="h-64 overflow-hidden bg-[#ebefe6] relative">
-                <img
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHQwjRRI0HM46SKi-WfGnWpnkAq0zxidg3MDLX0Cg6dAOAQIWqmYh11V2lt8o1hNoIqTjy7Ba3vxf8A3MMAQBfhxytlye3qsOsvyxbMHjMtkbxGX3_ybfY6mav1n8rC4_q1zRrgTVdiEVZ_Qr3DO-EWruPRkHJxE4QV0LZQJOjdDbFtkjlwT9iISJ-geapyHklo4PLKlCyRIj_asPsSU8gaBDKHyChazlRdCTuvlNz3h2qqXHKuWw-nw"
+                <img loading="lazy" decoding="async"
+                  src="/photos/home-spices.jpg"
                   alt="Mazooq Pure Origin Spices"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -447,8 +453,8 @@ export const HomeView: React.FC = () => {
             {/* Visual Pack Column */}
             <div className="lg:col-span-6 flex justify-center order-2 lg:order-1">
               <div className="relative max-w-lg w-full bg-white/5 p-4 sm:p-6 rounded-2xl shadow-2xl backdrop-blur-md border border-white/10">
-                <img
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuA1zJDlXaKc_0S2kUvLH72skXokBCkD0_mZR0I9RynjCqy2iyfeg8atLlpZrO6szqpdToTxB3T8hR95BzW2wHpo4Qy120UU6HXRRX3LUVgtz01WQNbNZlsEbvo3ZeYyfary2aNHmWuDY7rufWtldGXw2qcVG30q2zffxOu0l_lKcxseDpbcjpb2PDIrkBAErzb21wp742zlwb9r7uGvC--60Vm_4FcgG7PI6SwsNcpfxMFekGINm1zgHwtonePUo7Qr9ew"
+                <img loading="lazy" decoding="async"
+                  src="/photos/home-tea-pack.jpg"
                   alt="Mazooq Premium Gold Assam Black Tea 1kg Pack Details"
                   className="w-full h-auto rounded-xl shadow-2xl object-cover"
                 />
@@ -509,14 +515,15 @@ export const HomeView: React.FC = () => {
                 <button
                   onClick={() => {
                     const tea = PRODUCTS.find((p) => p.id === 'mazooq-premium-gold-tea');
-                    if (tea) addToCart(tea, '250g', 199);
+                    const variant = tea?.variants.find((v) => v.size === '250g') || tea?.variants[0];
+                    if (tea && variant) addToCart(tea, variant.size, variant.price);
                   }}
                   className="px-8 py-3.5 bg-[#f2c027] text-[#181d17] font-bold text-xs uppercase tracking-wider rounded shadow hover:bg-[#ffdf93] transition-colors cursor-pointer"
                 >
                   Shop Mazooq Tea
                 </button>
                 <button
-                  onClick={() => navigateTo('mazooq-tea')}
+                  onClick={() => openShopCategory('tea')}
                   className="text-white hover:text-[#ffdf93] text-xs uppercase font-semibold tracking-wider underline underline-offset-4 transition-colors cursor-pointer"
                 >
                   Explore Tasting Notes →
@@ -574,7 +581,7 @@ export const HomeView: React.FC = () => {
 
               <div className="pt-4">
                 <button
-                  onClick={() => navigateTo('mazooq-dates')}
+                  onClick={() => openShopCategory('dates')}
                   className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#00290f] text-white text-xs font-semibold uppercase tracking-wider rounded shadow hover:bg-[#104020] transition-colors cursor-pointer"
                 >
                   <span>Explore Dates Selection</span>
@@ -586,8 +593,8 @@ export const HomeView: React.FC = () => {
             {/* Image Right */}
             <div className="lg:col-span-7">
               <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-[#ebefe6] border border-[#ebefe6]">
-                <img
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpVBWCsAdw7Ijvu4BNHSjggsOu4iVxR8Tx3H6rw3au2bF2SpvALnz5F08f-DJSaeJHkMCW2tWIqe4nmolVqN_tQszOKpu6DbGBxrTASqJdzUxY4YBYqtw_Nm7hw7GxYM95Nxc1aXkHRb3KtvlG_KfcLtXftH8fLtHBqC_suwXOf4AQtlFRJCyx6z8IpAVqxnf1Vk5dGGnZL6STr8JrHwD7NcTc1ewnN-d1_voKHWzNOo7dR2SSH4dL4Q"
+                <img loading="lazy" decoding="async"
+                  src="/photos/home-dates.jpg"
                   alt="Mazooq Premium Dates in Brass Platter with Arabic Tea"
                   className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-700 max-h-[520px]"
                 />
@@ -601,7 +608,7 @@ export const HomeView: React.FC = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => navigateTo('mazooq-dates')}
+                    onClick={() => openShopCategory('dates')}
                     className="px-3.5 py-1.5 bg-[#f2c027] text-[#181d17] rounded text-xs font-bold uppercase tracking-wider hover:bg-[#ffdf93]"
                   >
                     View Selection
@@ -668,19 +675,19 @@ export const HomeView: React.FC = () => {
                     {/* Image Area */}
                     <div className="relative h-52 bg-[#ebefe6] rounded-xl overflow-hidden flex items-center justify-center p-3 mb-4">
                       {product.tag && (
-                        <span className="absolute top-2 left-2 px-2.5 py-0.5 bg-[#f2c027] text-[#181d17] rounded text-[10px] font-bold uppercase tracking-wider shadow">
+                        <span className="absolute top-2 left-2 z-10 px-2.5 py-1 bg-[#f2c027] text-[#181d17] rounded text-[10px] font-bold uppercase tracking-wider shadow whitespace-nowrap">
                           {product.tag}
                         </span>
                       )}
                       <button
                         onClick={() => setQuickViewProduct(product)}
-                        className="absolute top-2 right-2 p-1.5 bg-white/80 hover:bg-white text-[#00290f] rounded-full shadow transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                        className="absolute top-2 right-2 z-10 p-1.5 bg-white/80 hover:bg-white text-[#00290f] rounded-full shadow transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
                         title="Quick View"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
 
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={product.image}
                         alt={product.name}
                         className="h-full w-auto object-contain group-hover:scale-105 transition-transform duration-300"
@@ -690,7 +697,7 @@ export const HomeView: React.FC = () => {
                     <span className="text-[11px] uppercase font-bold text-[#765b00] tracking-widest block">
                       {product.categoryLabel}
                     </span>
-                    <h3 className="font-serif text-lg font-bold text-[#00290f] mt-1 leading-snug">
+                    <h3 className="font-serif text-lg font-bold text-[#00290f] mt-1 leading-snug line-clamp-2">
                       {product.name}
                     </h3>
                     <p className="text-xs text-[#414941] mt-1 line-clamp-2">
@@ -808,8 +815,8 @@ export const HomeView: React.FC = () => {
             <div className="lg:col-span-6 grid grid-cols-2 gap-4">
               <div className="space-y-4">
                 <div className="rounded-2xl overflow-hidden shadow-md bg-[#ebefe6] border border-[#ebefe6]">
-                  <img
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHQwjRRI0HM46SKi-WfGnWpnkAq0zxidg3MDLX0Cg6dAOAQIWqmYh11V2lt8o1hNoIqTjy7Ba3vxf8A3MMAQBfhxytlye3qsOsvyxbMHjMtkbxGX3_ybfY6mav1n8rC4_q1zRrgTVdiEVZ_Qr3DO-EWruPRkHJxE4QV0LZQJOjdDbFtkjlwT9iISJ-geapyHklo4PLKlCyRIj_asPsSU8gaBDKHyChazlRdCTuvlNz3h2qqXHKuWw-nw"
+                  <img loading="lazy" decoding="async"
+                    src="/photos/home-spices.jpg"
                     alt="Assorted Whole Indian Spices"
                     className="w-full h-56 object-cover hover:scale-105 transition-transform duration-500"
                   />
@@ -834,8 +841,8 @@ export const HomeView: React.FC = () => {
                   </p>
                 </div>
                 <div className="rounded-2xl overflow-hidden shadow-md bg-[#ebefe6] border border-[#ebefe6]">
-                  <img
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBClIRZ-lAygkIzfhsI71RdtlXJrqJV9YO40ocUY-QzyGHBITbEi_QmgpQiKAd7TWUtGPxtMGcTmNrSUEWzGTH55hAgQn1JGn5-Ardir7RvzQ8OHHEKY4GCfzNBdW-q1t8vEHMojxyPL7kMW68irU8Cwcze0aRY591qs173SS1r7DSmEhgFuC_fVbqQM_am5Kj909ws4ZMcVGcbpMLbpeDsRjOXwNeWVGqIYlcV_IsU77ldWdIycYf6TQ"
+                  <img loading="lazy" decoding="async"
+                    src="/photos/home-snacks.jpg"
                     alt="Kerala Banana Chips Preparation"
                     className="w-full h-56 object-cover hover:scale-105 transition-transform duration-500"
                   />

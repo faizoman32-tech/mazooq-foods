@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mazooq Foods - photo coming soon">
+  <rect width="512" height="512" fill="#f1f5eb"/>
+  <!-- stand-up pouch -->
+  <path d="M156 92h200l14 26v292c0 12-10 22-22 22H164c-12 0-22-10-22-22V118z" fill="#00290f"/>
+  <path d="M156 92h200l14 26H142z" fill="#104020"/>
+  <rect x="142" y="118" width="228" height="6" fill="#f2c027" opacity=".8"/>
+  <!-- label -->
+  <rect x="172" y="168" width="168" height="196" rx="14" fill="#f6fbf1"/>
+  <circle cx="256" cy="226" r="34" fill="#f2c027"/>
+  <path d="M238 222a18 18 0 0 0 36 0" fill="none" stroke="#00290f" stroke-width="7" stroke-linecap="round"/>
+  <path d="M256 192c4-10 12-16 22-17-2 10-10 17-22 17z" fill="#104020"/>
+  <text x="256" y="294" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="26" font-weight="700" fill="#00290f" letter-spacing="2">MAZOOQ</text>
+  <text x="256" y="318" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#765b00" letter-spacing="3">TASTE THE SMILE</text>
+  <text x="256" y="348" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#717970">Photo coming soon</text>
+</svg>

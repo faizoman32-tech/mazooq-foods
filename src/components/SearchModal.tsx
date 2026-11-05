@@ -103,7 +103,7 @@ export const SearchModal: React.FC = () => {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-14 h-14 bg-[#f1f5eb] rounded-lg p-1 shrink-0 overflow-hidden flex items-center justify-center">
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={product.image}
                         alt={product.name}
                         className="w-full h-full object-contain group-hover:scale-105 transition-transform"

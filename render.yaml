@@ -1,0 +1,27 @@
+# Render Blueprint for Mazooq Foods - https://render.com/docs/blueprint-spec
+# One Web Service: builds the Vite site and runs server.js (site + Razorpay APIs).
+services:
+  - type: web
+    name: mazooq-foods
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      # Email alerts via Resend (see DEPLOYMENT-GUIDE.md)
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: ORDER_ALERT_EMAIL
+        sync: false
+      # Optional: forward orders to a URL (Google Sheets Apps Script / Zapier / Make / n8n)
+      - key: ORDER_NOTIFY_WEBHOOK_URL
+        sync: false

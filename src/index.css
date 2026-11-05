@@ -47,3 +47,50 @@ h1, h2, h3, .font-serif-heading {
 ::-webkit-scrollbar-thumb:hover {
   background: #765b00;
 }
+
+/* Floating tea leaves (home hero) - see src/components/FloatingLeaves.tsx */
+@keyframes leaf-float {
+  0% {
+    transform: translate3d(0, 40px, 0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--leaf-opacity, 0.5);
+  }
+  50% {
+    transform: translate3d(calc(var(--leaf-drift, 40px) * -0.5), -50vh, 0) rotate(calc(var(--leaf-spin, 180deg) * 0.5));
+  }
+  85% {
+    opacity: var(--leaf-opacity, 0.5);
+  }
+  100% {
+    transform: translate3d(var(--leaf-drift, 40px), -105vh, 0) rotate(var(--leaf-spin, 180deg));
+    opacity: 0;
+  }
+}
+.leaf-float {
+  animation-name: leaf-float;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+  filter: drop-shadow(0 2px 3px rgba(0, 20, 8, 0.35));
+}
+
+/* Slow "breathing" zoom on the hero photo */
+@keyframes hero-zoom {
+  from { transform: scale(1.04); }
+  to { transform: scale(1.12); }
+}
+.hero-zoom {
+  animation: hero-zoom 24s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaf-float {
+    animation: none;
+    display: none;
+  }
+  .hero-zoom {
+    animation: none;
+  }
+}

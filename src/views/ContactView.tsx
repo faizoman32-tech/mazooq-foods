@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { COMPANY } from '../data/company';
+import { COMPANY, whatsappLink } from '../data/company';
+import { WhatsAppIconTinted } from '../components/WhatsAppIcon';
 import { useCart } from '../context/CartContext';
 import { Phone, Mail, MapPin, Clock, ShieldCheck, Send, CheckCircle2, ChevronDown } from 'lucide-react';
 
@@ -35,10 +36,30 @@ export const ContactView: React.FC = () => {
     },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [sending, setSending] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [honeypot, setHoneypot] = useState(''); // hidden anti-spam field
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    showToast('Message Sent', 'Thank you. Our team will contact you shortly.');
+    setSending(true);
+    setFormError('');
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, website: honeypot }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) throw new Error(data?.message || 'Could not send your message.');
+      setSubmitted(true);
+      setFormData((f) => ({ ...f, message: '' }));
+      showToast('Message Sent', 'Thank you. Our team will contact you shortly.');
+    } catch (err: any) {
+      setFormError(`${err?.message || 'Could not send your message.'} You can also WhatsApp us on ${COMPANY.whatsapp}.`);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -80,6 +101,24 @@ export const ContactView: React.FC = () => {
                     </a>
                     <a href="tel:+919101991467" className="font-bold text-white hover:text-[#ffdf93] transition-colors block text-sm">
                       {COMPANY.phones[1]}
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                    {/* same light gold as the other icons in this card (#ffdf93) */}
+                    <WhatsAppIconTinted className="w-[18px] h-[18px]" tone="light" />
+                  </div>
+                  <div>
+                    <span className="text-white/60 block">WhatsApp (fastest reply):</span>
+                    <a
+                      href={whatsappLink('Hi Mazooq Foods, I have a question.')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-white hover:text-[#ffdf93] transition-colors block text-sm"
+                    >
+                      {COMPANY.whatsapp}
                     </a>
                   </div>
                 </div>
@@ -166,6 +205,17 @@ export const ContactView: React.FC = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+                {/* Anti-spam: hidden from people, bots fill it in */}
+                <input
+                  type="text"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  className="hidden"
+                />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[#414941] font-medium mb-1">Your Full Name *</label>
@@ -230,12 +280,19 @@ export const ContactView: React.FC = () => {
                   />
                 </div>
 
+                {formError && (
+                  <p role="alert" className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                    {formError}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-[#00290f] hover:bg-[#104020] text-[#ffdf93] font-bold text-xs uppercase tracking-wider rounded-xl transition-colors shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={sending}
+                  className="w-full py-3.5 bg-[#00290f] hover:bg-[#104020] disabled:opacity-60 text-[#ffdf93] font-bold text-xs uppercase tracking-wider rounded-xl transition-colors shadow-md flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Send className="w-4 h-4" />
-                  <span>Transmit Message</span>
+                  <span>{sending ? 'Sending…' : 'Send Message'}</span>
                 </button>
               </form>
             )}

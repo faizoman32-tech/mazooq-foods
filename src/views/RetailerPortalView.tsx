@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { COMPANY } from '../data/company';
-import { ShieldCheck, TrendingUp, Download, CheckCircle, Calculator, Building2, Truck, Phone, Mail } from 'lucide-react';
+import { ShieldCheck, TrendingUp, Download, CheckCircle, Calculator, Building2, Truck, Phone, Mail, Store, LayoutDashboard, ArrowRight } from 'lucide-react';
 
 export const RetailerPortalView: React.FC = () => {
-  const { showToast } = useCart();
+  const { showToast, openAccount, setAccountMode, isApprovedRetailer, setActivePage, user } = useCart();
 
   // Margin Calculator state
   const [selectedProduct, setSelectedProduct] = useState<'tea' | 'dates' | 'cashews' | 'chips' | 'spices'>('tea');
@@ -13,6 +13,7 @@ export const RetailerPortalView: React.FC = () => {
 
   // Registration Form state
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     businessName: '',
     contactName: '',
@@ -23,6 +24,8 @@ export const RetailerPortalView: React.FC = () => {
     businessType: 'Supermarket / Gourmet Store',
     interestProducts: 'Mazooq Assam Tea & Dates',
     notes: '',
+    password: '',
+    confirmPassword: '',
   });
 
   const calculatorConfig = {
@@ -62,10 +65,44 @@ export const RetailerPortalView: React.FC = () => {
   const totalGrossRevenue = mrp * units;
   const projectedGrossProfit = totalGrossRevenue - totalInvestment;
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormSubmitted(true);
-    showToast('Wholesale Application Received', 'Our B2B Institutional Accounts Desk will contact you within 24 hours.');
+    if (formData.password.length < 8) {
+      showToast('Password Too Short', 'Password kam se kam 8 characters ka hona chahiye.');
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      showToast('Passwords Mismatch', 'Password aur Confirm Password same nahi hain.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Creates a RETAILER account (status: PENDING - admin approval required).
+      const res = await fetch('/api/auth/retailer/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          contactName: formData.contactName,
+          businessName: formData.businessName,
+          phone: formData.phone,
+          gstin: formData.gstin,
+          city: formData.city,
+          businessType: formData.businessType,
+          interestProducts: formData.interestProducts,
+          notes: formData.notes,
+        }),
+      });
+      const d = await res.json().catch(() => null);
+      if (!res.ok || !d?.ok) throw new Error(d?.message || 'Registration failed. Please try again.');
+      setFormSubmitted(true);
+      showToast('Application Received', 'Admin approval ke baad aap apne email/password se login kar payenge.');
+    } catch (err: any) {
+      showToast('Registration Failed', err.message || 'Please try again, ya info@mazooq.com par likhein.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDownloadCatalog = () => {
@@ -88,20 +125,62 @@ export const RetailerPortalView: React.FC = () => {
         </p>
 
         <div className="pt-2 flex flex-wrap justify-center gap-4">
-          <button
-            onClick={handleDownloadCatalog}
-            className="px-6 py-3 bg-[#00290f] text-[#ffdf93] hover:bg-[#104020] text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm inline-flex items-center gap-2 cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            <span>Download Master Catalogue (PDF)</span>
-          </button>
+          {/* Conditional: approved retailers see dashboard link */}
+          {isApprovedRetailer ? (
+            <button
+              onClick={() => setActivePage('retailer-dashboard')}
+              className="px-6 py-3 bg-[#f2c027] hover:bg-[#ffdf93] text-[#181d17] text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm inline-flex items-center gap-2 cursor-pointer"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span>Open Retailer Dashboard</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setAccountMode('retailer-login');
+                openAccount();
+              }}
+              className="px-6 py-3 bg-[#f2c027] hover:bg-[#ffdf93] text-[#181d17] text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm inline-flex items-center gap-2 cursor-pointer"
+            >
+              <Store className="w-4 h-4" />
+              <span>Retailer Login</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
           <a
             href="#inquiry-form"
-            className="px-6 py-3 bg-[#f2c027] hover:bg-[#ffdf93] text-[#181d17] text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm inline-flex items-center gap-2"
+            className="px-6 py-3 bg-[#00290f] text-[#ffdf93] hover:bg-[#104020] text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm inline-flex items-center gap-2"
           >
             <span>Register as a Retailer</span>
           </a>
+          <button
+            onClick={handleDownloadCatalog}
+            className="px-6 py-3 bg-white border border-[#765b00]/30 text-[#00290f] hover:bg-[#f6fbf1] text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm inline-flex items-center gap-2 cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            <span>Master Catalogue (PDF)</span>
+          </button>
         </div>
+
+        {/* Status banner for pending/approved retailers */}
+        {user?.role === 'RETAILER' && !isApprovedRetailer && (
+          <div className="mt-6 max-w-2xl mx-auto p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs">
+            <div className="font-bold mb-0.5 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4" />
+              Retailer Account Status: {user.status}
+            </div>
+            <p className="leading-relaxed">
+              {user.status === 'PENDING'
+                ? 'Aapki application admin ke paas review me hai. Approve hone ke baad wholesale pricing aur dashboard access mil jayega.'
+                : user.status === 'REJECTED'
+                ? 'Application approve nahi hui. Sawaal ho to info@mazooq.com par likhein.'
+                : user.status === 'SUSPENDED'
+                ? 'Account suspend hai. Contact: info@mazooq.com'
+                : 'Apni retailer profile check karne ke liye login karein.'}
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Interactive Retail Margin Calculator */}
@@ -294,14 +373,28 @@ export const RetailerPortalView: React.FC = () => {
               </div>
               <h3 className="font-serif text-2xl font-bold text-[#00290f]">Application Registered!</h3>
               <p className="text-xs text-[#414941] max-w-md mx-auto leading-relaxed">
-                Thank you, <strong>{formData.contactName || 'Partner'}</strong>. We have logged your enquiry for <strong>{formData.businessName || 'your enterprise'}</strong>. Our team will contact you within 24 hours.
+                Thank you, <strong>{formData.contactName || 'Partner'}</strong>. Aapki application for <strong>{formData.businessName || 'your enterprise'}</strong> receive ho gayi hai.
+                <br /><br />
+                <strong>Admin approval</strong> ke baad aap apne email/password se <strong>Retailer Login</strong> kar payenge — tab wholesale tier pricing aur retailer dashboard access mil jayega.
               </p>
-              <button
-                onClick={() => setFormSubmitted(false)}
-                className="mt-4 px-6 py-2.5 bg-[#00290f] text-white text-xs font-semibold uppercase tracking-wider rounded-lg"
-              >
-                Submit Another Inquiry
-              </button>
+              <div className="flex justify-center gap-3 mt-4">
+                <button
+                  onClick={() => setFormSubmitted(false)}
+                  className="px-6 py-2.5 bg-[#00290f] text-white text-xs font-semibold uppercase tracking-wider rounded-lg cursor-pointer"
+                >
+                  Submit Another
+                </button>
+                <button
+                  onClick={() => {
+                    setAccountMode('retailer-login');
+                    openAccount();
+                  }}
+                  className="px-6 py-2.5 bg-[#f2c027] text-[#181d17] text-xs font-bold uppercase tracking-wider rounded-lg cursor-pointer flex items-center gap-2"
+                >
+                  <Store className="w-4 h-4" />
+                  Retailer Login
+                </button>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
@@ -347,6 +440,30 @@ export const RetailerPortalView: React.FC = () => {
                     placeholder="+91 98460 00000"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full bg-[#f6fbf1] border border-[#dfe4da] rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#765b00]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#414941] font-medium mb-1">Create Login Password * (min 8 characters)</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    placeholder="Apna password banayein"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full bg-[#f6fbf1] border border-[#dfe4da] rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#765b00]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#414941] font-medium mb-1">Confirm Password *</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    placeholder="Wahi password dobara"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                     className="w-full bg-[#f6fbf1] border border-[#dfe4da] rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#765b00]"
                   />
                 </div>
@@ -397,10 +514,17 @@ export const RetailerPortalView: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-4 bg-[#f2c027] hover:bg-[#ffdf93] text-[#181d17] font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-colors cursor-pointer"
+                disabled={submitting}
+                className={`w-full py-4 font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-colors cursor-pointer ${
+                  submitting ? 'bg-stone-300 text-stone-500' : 'bg-[#f2c027] hover:bg-[#ffdf93] text-[#181d17]'
+                }`}
               >
-                Submit Retailer Application
+                {submitting ? 'Submitting...' : 'Submit Retailer Application'}
               </button>
+
+              <p className="text-[11px] text-[#717970] text-center leading-relaxed">
+                Password aapke <strong>retailer login</strong> ke liye hai — admin approval ke baad hi wholesale pricing active hogi.
+              </p>
 
               <div className="flex items-center justify-center gap-2 text-[11px] text-[#717970] pt-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />

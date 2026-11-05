@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Tag } from 'lucide-react';
+import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Store } from 'lucide-react';
 
 export const CartDrawer: React.FC = () => {
   const {
@@ -12,27 +12,15 @@ export const CartDrawer: React.FC = () => {
     subtotal,
     setIsCheckoutOpen,
     showToast,
+    isApprovedRetailer,
   } = useCart();
 
-  const [promoCode, setPromoCode] = useState('');
-  const [discountPercent, setDiscountPercent] = useState(0);
 
-  const freeShippingThreshold = 1500;
+  const freeShippingThreshold = isApprovedRetailer ? 5000 : 1500;
+  const shippingCost = isApprovedRetailer ? 199 : 99;
   const progressToFreeShipping = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
   const amountNeeded = Math.max(0, freeShippingThreshold - subtotal);
 
-  const handleApplyPromo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (promoCode.trim().toUpperCase() === 'MAZOOQ10' || promoCode.trim().toUpperCase() === 'TASTETHESMILE') {
-      setDiscountPercent(10);
-      showToast('Promo Applied', '10% privilege discount applied to your order.');
-    } else {
-      showToast('Invalid Code', 'Try MAZOOQ10 for 10% privilege discount.');
-    }
-  };
-
-  const discountAmount = Math.round((subtotal * discountPercent) / 100);
-  const finalTotal = subtotal - discountAmount;
 
   if (!isCartOpen) return null;
 
@@ -50,9 +38,17 @@ export const CartDrawer: React.FC = () => {
           <div className="p-6 bg-[#00290f] text-white flex items-center justify-between shadow-md">
             <div className="flex items-center gap-2">
               <ShoppingBag className="w-5 h-5 text-[#f2c027]" />
-              <h3 className="font-serif text-lg text-white font-bold tracking-tight">
-                Bespoke Order Bag
-              </h3>
+              <div>
+                <h3 className="font-serif text-lg text-white font-bold tracking-tight">
+                  {isApprovedRetailer ? 'Wholesale Order Bag' : 'Bespoke Order Bag'}
+                </h3>
+                {isApprovedRetailer && (
+                  <span className="text-[10px] text-[#ffdf93] uppercase tracking-wider flex items-center gap-1">
+                    <Store className="w-3 h-3" />
+                    Retailer Pricing Applied
+                  </span>
+                )}
+              </div>
             </div>
             <button
               onClick={() => setIsCartOpen(false)}
@@ -65,7 +61,11 @@ export const CartDrawer: React.FC = () => {
           {/* Free Delivery Bar */}
           <div className="bg-[#104020] text-[#ffdf93] px-6 py-3 text-xs">
             <div className="flex justify-between font-semibold mb-1">
-              <span>{amountNeeded > 0 ? `Add ₹${amountNeeded} more for Free Delivery` : '🎉 Qualified for Free Insured Dispatch!'}</span>
+              <span>
+                {amountNeeded > 0
+                  ? `Add ₹${amountNeeded.toLocaleString('en-IN')} more for Free Shipping`
+                  : '🎉 Qualified for Free Insured Dispatch!'}
+              </span>
               <span>{progressToFreeShipping}%</span>
             </div>
             <div className="w-full bg-black/30 rounded-full h-1.5 overflow-hidden">
@@ -96,10 +96,12 @@ export const CartDrawer: React.FC = () => {
               cart.map((item) => (
                 <div
                   key={item.id}
-                  className="p-4 bg-white rounded-xl shadow-sm border border-[#ebefe6] flex gap-4 items-center justify-between"
+                  className={`p-4 bg-white rounded-xl shadow-sm border flex gap-4 items-center justify-between ${
+                    item.isRetailerPrice ? 'border-[#f2c027]/40' : 'border-[#ebefe6]'
+                  }`}
                 >
                   <div className="w-16 h-16 rounded-lg bg-[#ebefe6] p-1.5 shrink-0 overflow-hidden flex items-center justify-center">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={item.image}
                       alt={item.name}
                       className="w-full h-full object-contain"
@@ -109,7 +111,14 @@ export const CartDrawer: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-semibold text-[#00290f] truncate">{item.name}</h4>
                     <p className="text-xs text-[#414941]">{item.variantSize}</p>
-                    <div className="text-sm font-bold text-[#765b00] mt-1">₹{item.price}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="text-sm font-bold text-[#765b00]">₹{item.price}</div>
+                      {item.isRetailerPrice && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-[#104020] text-[#ffdf93] text-[9px] font-bold uppercase tracking-wider">
+                          Wholesale
+                        </span>
+                      )}
+                    </div>
 
                     {/* Quantity Stepper */}
                     <div className="flex items-center gap-2 mt-2">
@@ -129,7 +138,7 @@ export const CartDrawer: React.FC = () => {
                         </button>
                       </div>
                       <span className="text-[11px] text-[#414941]">
-                        = ₹{item.price * item.quantity}
+                        = ₹{(item.price * item.quantity).toLocaleString('en-IN')}
                       </span>
                     </div>
                   </div>
@@ -149,48 +158,23 @@ export const CartDrawer: React.FC = () => {
           {/* Footer & Checkout Area */}
           {cart.length > 0 && (
             <div className="p-6 bg-white border-t border-[#ebefe6] space-y-4 shadow-lg">
-              {/* Promo Code Form */}
-              <form onSubmit={handleApplyPromo} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag className="w-3.5 h-3.5 absolute left-3 top-3 text-[#717970]" />
-                  <input
-                    type="text"
-                    placeholder="Coupon (try MAZOOQ10)"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 text-xs bg-[#f1f5eb] border border-[#dfe4da] rounded focus:outline-none focus:border-[#765b00]"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="px-3 py-2 bg-[#104020] text-[#ffdf93] text-xs font-semibold uppercase tracking-wider rounded hover:bg-[#00290f]"
-                >
-                  Apply
-                </button>
-              </form>
 
               {/* Price Calculations */}
               <div className="space-y-1.5 text-xs text-[#414941] pt-1">
                 <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span className="font-semibold text-[#181d17]">₹{subtotal}</span>
+                  <span>{isApprovedRetailer ? 'Wholesale Subtotal' : 'Subtotal'}</span>
+                  <span className="font-semibold text-[#181d17]">₹{subtotal.toLocaleString('en-IN')}</span>
                 </div>
-                {discountPercent > 0 && (
-                  <div className="flex justify-between text-emerald-700 font-medium">
-                    <span>Privilege Discount ({discountPercent}%)</span>
-                    <span>-₹{discountAmount}</span>
-                  </div>
-                )}
                 <div className="flex justify-between">
                   <span>Estimated Shipping</span>
                   <span className="font-semibold text-emerald-700">
-                    {amountNeeded === 0 ? 'FREE' : '₹99 (Free above ₹1500)'}
+                    {amountNeeded === 0 ? 'FREE' : `₹${shippingCost} (Free above ₹${freeShippingThreshold.toLocaleString('en-IN')})`}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-[#00290f] pt-2 border-t border-[#ebefe6]">
                   <span>Total (Taxes Included)</span>
                   <span className="text-base text-[#765b00]">
-                    ₹{finalTotal + (amountNeeded === 0 ? 0 : 99)}
+                    ₹{(subtotal + (amountNeeded === 0 ? 0 : shippingCost)).toLocaleString('en-IN')}
                   </span>
                 </div>
               </div>
@@ -203,13 +187,17 @@ export const CartDrawer: React.FC = () => {
                 }}
                 className="w-full py-3.5 bg-[#f2c027] text-[#181d17] font-semibold text-xs uppercase tracking-wider rounded shadow-md hover:bg-[#ffdf93] transition-all flex items-center justify-center gap-2 cursor-pointer font-bold"
               >
-                <span>Proceed to Secure Checkout</span>
+                <span>{isApprovedRetailer ? 'Proceed to Wholesale Checkout' : 'Proceed to Secure Checkout'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
               <div className="flex items-center justify-center gap-2 text-[11px] text-[#717970]">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Complimentary insured transit • FSSAI certified batches</span>
+                <span>
+                  {isApprovedRetailer
+                    ? 'Retailer tier prices are server-validated at checkout • Complimentary insured transit'
+                    : 'Complimentary insured transit • FSSAI certified batches'}
+                </span>
               </div>
             </div>
           )}

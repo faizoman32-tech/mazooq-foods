@@ -1,18 +1,31 @@
 import React, { useState } from 'react';
 import { useCart, PageView } from '../context/CartContext';
 import { Phone, Mail, MapPin, CheckCircle, ShieldCheck, ArrowRight } from 'lucide-react';
-import { COMPANY } from '../data/company';
+import { COMPANY, whatsappLink } from '../data/company';
+import { WhatsAppIconTinted } from './WhatsAppIcon';
+import { pathFor } from '../routes';
 
 export const Footer: React.FC = () => {
-  const { setActivePage, showToast } = useCart();
+  const { setActivePage, showToast, openShopCategory } = useCart();
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
 
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newsletterEmail.trim() || !newsletterEmail.includes('@')) return;
-    setNewsletterSubscribed(true);
-    showToast('Subscribed to Mazooq Connoisseurs', 'Thank you for joining our private tasting bulletin.');
+    try {
+      const res = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newsletterEmail }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) throw new Error(data?.message || 'Could not subscribe. Please try again.');
+      setNewsletterSubscribed(true);
+      showToast('Subscribed', 'Thank you! We will email you about new harvests and offers.');
+    } catch (err: any) {
+      showToast('Subscription failed', err?.message || 'Please try again.');
+    }
   };
 
   const navigateTo = (page: PageView) => {
@@ -26,13 +39,11 @@ export const Footer: React.FC = () => {
         {/* Brand Column */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full overflow-hidden p-0.5 bg-gradient-to-tr from-[#ffdf93] to-[#f2c027] shadow-md">
-              <img
-                src="https://lh3.googleusercontent.com/aida/AEtjO1WQmVKzgQ8J59JKL6_h1uwe2m1Kmf9Rtxx0GpNbVFCZW6JTgdjA4aaM62xgCw5COpfk8okG5NNFXs8sbNxhCU6w56L5QxLoVG3TjqtzWj7QRB1ZKRgqMXhqUo6heuieYskJu3YzIok25giOlYJuCECACjIlsVV0Z3gD27TZBwmuxhWN8WpAeOd5mh7wFyKCeX6ceH0ia5ouDzTdcHJf_NulzIaaiGpv_to0Ms87OTZphHjBpRvu5J2X3ehf9pvu2Vapelp79PU30Zs"
-                alt="Mazooq Foods Emblem"
-                className="w-full h-full rounded-full object-cover"
-              />
-            </div>
+            <img loading="lazy" decoding="async"
+              src="/photos/mazooq-logo.png"
+              alt="Mazooq Foods Emblem"
+              className="w-12 h-12 sm:w-14 sm:h-14 object-contain rounded-lg"
+            />
             <div className="flex flex-col">
               <span className="font-serif text-xl tracking-tight text-white uppercase font-bold leading-none">
                 MAZOOQ FOODS
@@ -101,7 +112,7 @@ export const Footer: React.FC = () => {
           <ul className="space-y-2 text-xs text-white/80">
             <li>
               <button
-                onClick={() => navigateTo('mazooq-tea')}
+                onClick={() => openShopCategory('tea')}
                 className="hover:text-[#ffdf93] transition-colors cursor-pointer text-left"
               >
                 Mazooq Assam Tea (CTC & Gold)
@@ -109,7 +120,7 @@ export const Footer: React.FC = () => {
             </li>
             <li>
               <button
-                onClick={() => navigateTo('mazooq-dates')}
+                onClick={() => openShopCategory('dates')}
                 className="hover:text-[#ffdf93] transition-colors cursor-pointer text-left"
               >
                 Royal Medjool & Ajwa Dates
@@ -209,6 +220,15 @@ export const Footer: React.FC = () => {
               <Phone className="w-4 h-4 text-[#f2c027] shrink-0" />
               <span>{COMPANY.phones[0]} / {COMPANY.phones[1]}</span>
             </p>
+            <a
+              href={whatsappLink('Hi Mazooq Foods, I have a question.')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 hover:text-white transition-colors"
+            >
+              <WhatsAppIconTinted className="w-[18px] h-[18px]" />
+              <span>WhatsApp: {COMPANY.whatsapp}</span>
+            </a>
             <p className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-[#f2c027] shrink-0" />
               <span>{COMPANY.email}</span>
@@ -236,27 +256,27 @@ export const Footer: React.FC = () => {
 
       {/* Bottom Bar */}
       <div className="max-w-7xl mx-auto px-6 lg:px-12 mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-xs text-white/60 gap-4">
-        <p>© 2026 Mazooq Foods Private Limited. All royal rights reserved.</p>
-        <div className="flex gap-6">
-          <button
-            onClick={() => showToast('Compliance Notice', 'Mazooq products adhere to strict FSSAI and international food packaging norms.')}
-            className="hover:text-white transition-colors"
-          >
-            FSSAI Standards
-          </button>
-          <button
-            onClick={() => showToast('Terms of Supply', 'Standard pan-India and CIF international delivery terms apply.')}
-            className="hover:text-white transition-colors"
-          >
-            Terms of Supply
-          </button>
-          <button
-            onClick={() => navigateTo('global-vision')}
-            className="hover:text-white transition-colors"
-          >
-            Export Compliance
-          </button>
-        </div>
+        <p>© {new Date().getFullYear()} Mazooq Foods Private Limited. All rights reserved.</p>
+        <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2" aria-label="Policies">
+          {([
+            ['privacy-policy', 'Privacy Policy'],
+            ['terms', 'Terms & Conditions'],
+            ['refund-policy', 'Refund & Returns'],
+            ['shipping-policy', 'Shipping & Delivery'],
+          ] as [PageView, string][]).map(([page, label]) => (
+            <a
+              key={page}
+              href={pathFor(page)}
+              onClick={(e) => {
+                e.preventDefault();
+                navigateTo(page);
+              }}
+              className="hover:text-white transition-colors"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
       </div>
     </footer>
   );

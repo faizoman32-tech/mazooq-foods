@@ -26,8 +26,8 @@ export const OurStoryView: React.FC = () => {
       <section className="max-w-7xl mx-auto px-6 lg:px-12 mb-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-6 relative rounded-2xl overflow-hidden shadow-2xl bg-[#ebefe6]">
-            <img
-              src="/src/assets/images/hero_assam_tea_estate_1790503374240.jpg"
+            <img loading="lazy" decoding="async"
+              src="/photos/assam-tea-estate.jpg"
               alt="Assam Tea Plantation Valley at Sunrise"
               className="w-full h-[450px] object-cover"
             />
@@ -100,8 +100,8 @@ export const OurStoryView: React.FC = () => {
 
           <div className="lg:col-span-6">
             <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-              <img
-                src="/src/assets/images/boutique_mazooq_store_1790503386508.jpg"
+              <img loading="lazy" decoding="async"
+                src="/photos/mazooq-store.jpg"
                 alt="Mazooq Artisan Boutique and Tasting Room"
                 className="w-full h-[400px] object-cover"
               />

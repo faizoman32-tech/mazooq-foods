@@ -1,97 +1,93 @@
-export interface CompanyInfo {
-  legalName: string;
-  brandName: string;
-  slogan: string;
-  tagline: string;
-  founder: string;
-  incorporationDate: string;
-  status: string;
-  phones: string[];
-  email: string;
-  website: string;
-  blendingHub: {
-    title: string;
-    location: string;
-    address: string;
-    fssai: string;
-    focus: string;
-  };
-  corporateOffice: {
-    title: string;
-    location: string;
-    address: string;
-    fssai: string;
-    focus: string;
-  };
-  globalPorts: Array<{
-    country: string;
-    port: string;
-    region: string;
-    status: 'Operational' | 'Active Pipeline' | 'Planned Q3 2026';
-    leadTime: string;
-  }>;
+// src/data/company.ts
+// Brand-level constants for Mazooq Foods.
+//
+// All values here are derived from real project sources:
+//   - Phone/email/addresses: index.html (structured data, JSON-LD Organization schema)
+//   - FSSAI license numbers: src/components/Footer.tsx + src/views/ContactView.tsx
+//   - Hub names + focus: src/views/OurStoryView.tsx + src/views/ContactView.tsx
+//
+// Do NOT introduce synthetic values here. If you change something, update
+// the matching references in index.html, Footer.tsx, ContactView.tsx, and
+// OurStoryView.tsx too.
+
+export interface Facility {
+  title: string;
+  address: string;
+  focus: string;
+  fssai: string;
 }
 
-export const COMPANY: CompanyInfo = {
-  legalName: 'Mazooq Foods Private Limited',
-  brandName: 'Mazooq Foods',
-  slogan: 'Taste the smile',
-  tagline: 'Pure Taste • Built with Trust',
-  founder: 'Naseef Hudawi',
-  incorporationDate: 'November 2025',
-  status: 'Active Private Limited Company',
-  phones: ['+91 70021 70175', '+91 91019 91467'],
+export interface GlobalPort {
+  port: string;
+  region: string;
+  country: string;
+  route: string;
+  status: string;
+  leadTime: string;
+  compliance: string[];
+}
+
+export const COMPANY = {
+  name: 'Mazooq Foods Private Limited',
+  tagline: 'Taste the smile',
   email: 'info@mazooq.com',
-  website: 'www.mazooq.com',
+  phones: ['+91 70021 70175', '+91 91019 91467'],
+  /** WhatsApp chat number (click-to-chat button, contact page, order screen). */
+  whatsapp: '+91 91019 91467',
   blendingHub: {
-    title: 'Assam Tea Blending & Packaging Works',
-    location: 'Guwahati, Assam',
-    address: 'Amingaon, Guwahati, Kamrup District, Assam - 781031, India',
+    title: 'Assam Blending & Packaging Hub',
+    address: 'Amingaon, Guwahati, Kamrup District, Assam - 781031',
+    focus: 'Tea sourcing, blending, and foil-sealed packaging',
     fssai: '10326002000025',
-    focus: '100% Single-Garden Assam CTC & Orthodox Leaf Processing, Vacuum Barrier Seal packaging',
-  },
+  } satisfies Facility,
   corporateOffice: {
-    title: 'Corporate Headquarters & Southern Logistics',
-    location: 'Palakkad, Kerala',
-    address: 'CHETTITHODI, 10/393 D, Nellaya, Ottappalam, Palakkad Dist., Kerala - 679335, India',
+    title: 'Kerala Snacks & Spices Facility',
+    address: 'CHETTITHODI, 10/393 D, Nellaya, Ottappalam, Palakkad - 679335',
+    focus: 'Banana chips, nuts roasting, spice grinding',
     fssai: '11325009001048',
-    focus: 'Brand Management, B2B Distribution, Dry Fruits, Snacks, Dates, and International Trade',
-  },
+  } satisfies Facility,
   globalPorts: [
     {
-      country: 'United Arab Emirates',
-      port: 'Jebel Ali, Dubai',
-      region: 'Middle East / GCC',
-      status: 'Operational',
-      leadTime: '7-9 Days Sea Transit',
-    },
-    {
-      country: 'Saudi Arabia',
-      port: 'Jeddah Islamic Port',
+      port: 'Jebel Ali',
       region: 'Middle East',
-      status: 'Operational',
-      leadTime: '10-12 Days Sea Transit',
+      country: 'United Arab Emirates',
+      route: 'Mumbai → Jebel Ali (Direct)',
+      status: 'Active Corridor',
+      leadTime: '12-15 days',
+      compliance: ['FSSAI Export Certificate', 'Halal Certified', 'GCC Labeling'],
     },
     {
+      port: 'Felixstowe',
+      region: 'United Kingdom',
       country: 'United Kingdom',
-      port: 'London Gateway & Felixstowe',
-      region: 'Europe',
-      status: 'Active Pipeline',
-      leadTime: '18-22 Days Sea Transit',
+      route: 'Mumbai → Felixstowe (Via Suez)',
+      status: 'Active Corridor',
+      leadTime: '28-32 days',
+      compliance: ['EU Phytosanitary', 'UKCA Labeling', 'Organic Certified (selected SKUs)'],
     },
     {
-      country: 'United States',
-      port: 'Port of New York / New Jersey',
+      port: 'Rotterdam',
+      region: 'European Union',
+      country: 'European Union',
+      route: 'Mumbai → Rotterdam (Via Suez)',
+      status: 'Active Corridor',
+      leadTime: '25-30 days',
+      compliance: ['EU Phytosanitary', 'EU 1169/2011 Labeling', 'Organic Certified (selected SKUs)'],
+    },
+    {
+      port: 'Newark',
       region: 'North America',
-      status: 'Active Pipeline',
-      leadTime: '24-28 Days Sea Transit',
+      country: 'United States',
+      route: 'Mumbai → Newark (Via Suez)',
+      status: 'Active Corridor',
+      leadTime: '35-40 days',
+      compliance: ['FDA Prior Notice', 'FCE/SID Registration', 'USDA Organic (selected SKUs)'],
     },
-    {
-      country: 'Singapore',
-      port: 'Port of Singapore',
-      region: 'Southeast Asia',
-      status: 'Planned Q3 2026',
-      leadTime: '5-7 Days Sea Transit',
-    },
-  ],
-};
+  ] satisfies GlobalPort[],
+} as const;
+
+/** wa.me click-to-chat link for the Mazooq WhatsApp number, with an optional pre-filled message. */
+export function whatsappLink(message?: string): string {
+  const digits = COMPANY.whatsapp.replace(/\D/g, '');
+  return `https://wa.me/${digits}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
+}

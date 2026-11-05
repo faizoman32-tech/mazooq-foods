@@ -8,7 +8,7 @@ export const Toast: React.FC = () => {
   if (!toast.visible) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 transition-all duration-300 pointer-events-none flex items-center gap-3 bg-[#00290f] text-white px-5 py-3.5 rounded-xl shadow-2xl border-l-4 border-[#f2c027] animate-slide-up">
+    <div className="fixed bottom-24 right-5 left-5 sm:left-auto z-50 transition-all duration-300 pointer-events-none flex items-center gap-3 bg-[#00290f] text-white px-5 py-3.5 rounded-xl shadow-2xl border-l-4 border-[#f2c027] animate-slide-up">
       <CheckCircle2 className="w-5 h-5 text-[#ffdf93] shrink-0" />
       <div>
         <p className="text-xs uppercase tracking-wider font-bold text-[#ffdf93]">

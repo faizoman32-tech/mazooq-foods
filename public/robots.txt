@@ -1,0 +1,10 @@
+# Mazooq Foods - https://mazooq.com
+User-agent: *
+Allow: /
+
+# Store operational endpoints - not useful for search engines
+Disallow: /api/
+Disallow: /admin
+Disallow: /retailer/dashboard
+
+Sitemap: https://mazooq.com/sitemap.xml

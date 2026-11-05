@@ -1,23 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
-import { X, Star, ShoppingBag, ShieldCheck, MapPin, Sparkles, Check } from 'lucide-react';
+import { Product } from '../data/products';
+import { retailerUnitPrice, retailerTiersForSize } from '../../shared/retailer-pricing.js';
+
+import { X, ShoppingBag, ShieldCheck, MapPin, Sparkles, Check, Tag, TrendingDown } from 'lucide-react';
+
 
 export const QuickViewModal: React.FC = () => {
-  const { quickViewProduct, setQuickViewProduct, addToCart } = useCart();
+  const { quickViewProduct, setQuickViewProduct, addToCart, isApprovedRetailer } = useCart();
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     setSelectedVariantIndex(0);
-    setQuantity(1);
-  }, [quickViewProduct]);
+    setQuantity(isApprovedRetailer ? 10 : 1);
+  }, [quickViewProduct, isApprovedRetailer]);
 
   if (!quickViewProduct) return null;
 
   const currentVariant = quickViewProduct.variants[selectedVariantIndex] || quickViewProduct.variants[0];
+  const retailerUnit = isApprovedRetailer
+    ? retailerUnitPrice(quickViewProduct, currentVariant.size, quantity)
+    : null;
+  const unitPrice = (isApprovedRetailer && retailerUnit !== null)
+    ? retailerUnit
+    : currentVariant.price;
+  const isUsingRetailerPrice = (isApprovedRetailer && retailerUnit !== null && retailerUnit !== currentVariant.price);
 
   const handleAdd = () => {
-    addToCart(quickViewProduct, currentVariant.size, currentVariant.price, quantity);
+    addToCart(quickViewProduct, currentVariant.size, unitPrice, quantity);
     setQuickViewProduct(null);
   };
 
@@ -38,6 +49,12 @@ export const QuickViewModal: React.FC = () => {
             {quickViewProduct.tag && (
               <span className="absolute top-4 left-4 bg-[#765b00] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow">
                 {quickViewProduct.tag}
+              </span>
+            )}
+            {isApprovedRetailer && (
+              <span className="absolute top-4 right-4 bg-[#104020] text-[#ffdf93] text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow flex items-center gap-1">
+                <Tag className="w-3 h-3" />
+                Wholesale
               </span>
             )}
             <img
@@ -63,12 +80,11 @@ export const QuickViewModal: React.FC = () => {
                 <span className="text-xs uppercase font-bold text-[#765b00] tracking-wider">
                   {quickViewProduct.categoryLabel}
                 </span>
-                <span className="text-gray-300">•</span>
-                <div className="flex items-center gap-1 text-xs text-amber-600 font-bold">
-                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                  <span>{quickViewProduct.rating}</span>
-                  <span className="text-[#717970] font-normal">({quickViewProduct.reviewsCount})</span>
-                </div>
+                {isApprovedRetailer && (
+                  <span className="px-2 py-0.5 rounded-full bg-[#104020] text-[#ffdf93] text-[10px] font-bold uppercase tracking-wider">
+                    Retailer Pricing
+                  </span>
+                )}
               </div>
 
               <h2 className="font-serif text-2xl font-bold text-[#00290f] leading-snug">
@@ -83,6 +99,30 @@ export const QuickViewModal: React.FC = () => {
                 <span className="font-bold text-[#00290f] block mb-0.5">Heritage Notes:</span>
                 {quickViewProduct.story}
               </div>
+
+              {/* Retailer tier table (approved retailers only) */}
+              {isApprovedRetailer && retailerTiersForSize(quickViewProduct, currentVariant.size).length > 0 && (
+                <div className="mt-3 p-3 bg-[#104020]/5 rounded-lg border border-[#f2c027]/30">
+                  <div className="text-[10px] uppercase font-bold text-[#765b00] tracking-wider flex items-center gap-1 mb-1">
+                    <TrendingDown className="w-3.5 h-3.5" />
+                    Wholesale Quantity Tiers ({currentVariant.size})
+                  </div>
+                  <div className="space-y-0.5 text-[11px] text-[#414941]">
+                    {retailerTiersForSize(quickViewProduct, currentVariant.size).map((t, i) => {
+                      const inTier = quantity >= t.minQty && (t.maxQty === null || t.maxQty === undefined || quantity <= t.maxQty);
+                      return (
+                        <div key={i} className={`flex justify-between items-center py-0.5 ${inTier ? 'font-bold text-[#104020]' : ''}`}>
+                          <span>
+                            {t.maxQty == null ? `${t.minQty}+` : `${t.minQty}-${t.maxQty}`} units
+                            {inTier && <Check className="w-3 h-3 inline ml-1 text-emerald-600" />}
+                          </span>
+                          <span>₹{t.pricePerUnit}/unit</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Nutrition Table */}
               <div className="mt-4 pt-3 border-t border-[#ebefe6]">
@@ -156,9 +196,18 @@ export const QuickViewModal: React.FC = () => {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <div className="text-2xl font-serif font-bold text-[#00290f]">
-                    ₹{currentVariant.price * quantity}
+                    ₹{unitPrice * quantity}
                   </div>
-                  <span className="text-[10px] text-[#717970] block">Taxes included</span>
+                  <div className="text-[10px] text-[#717970]">
+                    {isUsingRetailerPrice
+                      ? `Retailer price: ₹${unitPrice}/unit × ${quantity}`
+                      : `₹${unitPrice}${quantity > 1 ? ` × ${quantity}` : ''} • Taxes included`}
+                  </div>
+                  {isUsingRetailerPrice && (
+                    <div className="text-[10px] text-[#717970] line-through">
+                      ₹{currentVariant.price * quantity} (retail)
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3">

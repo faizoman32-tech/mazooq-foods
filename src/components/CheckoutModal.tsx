@@ -1,44 +1,227 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { X, CheckCircle, Truck, CreditCard, ShieldCheck, ArrowRight, Printer } from 'lucide-react';
+import { whatsappLink } from '../data/company';
+import { WhatsAppIcon } from './WhatsAppIcon';
+import { POLICY_SETTINGS } from '../data/policies';
+
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
+
+/** Dynamically loads the official Razorpay Checkout script. */
+function loadRazorpayCheckout(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') return resolve(false);
+    if (window.Razorpay) return resolve(true);
+
+    const existing = document.getElementById('razorpay-checkout-js') as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener('load', () => resolve(true));
+      existing.addEventListener('error', () => resolve(false));
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'razorpay-checkout-js';
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
+type PaymentMethod = 'cod' | 'upi' | 'card';
+
+const PAYMENT_MODE_LABEL: Record<PaymentMethod, string> = {
+  cod: 'Cash on Delivery',
+  upi: 'Paid Online — UPI (Razorpay)',
+  card: 'Paid Online — Card / NetBanking (Razorpay)',
+};
 
 export const CheckoutModal: React.FC = () => {
-  const { isCheckoutOpen, setIsCheckoutOpen, cart, subtotal, clearCart, showToast } = useCart();
+  const { isCheckoutOpen, setIsCheckoutOpen, cart, subtotal, clearCart, showToast, isApprovedRetailer } = useCart();
 
   const [step, setStep] = useState<'details' | 'success'>('details');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [paymentInfo, setPaymentInfo] = useState<{ method: PaymentMethod; paymentId?: string } | null>(null);
   const [formData, setFormData] = useState({
-    name: 'Faiz O.',
-    phone: '+91 98460 12345',
-    email: 'faizoman32@gmail.com',
-    address: 'Flat 4B, Emerald Residency, Civil Station',
-    city: 'Palakkad',
-    state: 'Kerala',
-    pincode: '679101',
-    paymentMethod: 'cod', // 'cod' | 'upi' | 'card'
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    paymentMethod: 'cod' as PaymentMethod,
   });
   const [confirmedOrderId, setConfirmedOrderId] = useState('');
+  const [confirmedTotal, setConfirmedTotal] = useState(0);
 
   if (!isCheckoutOpen) return null;
 
-  const shippingCost = subtotal >= 1500 ? 0 : 99;
+  // Same rule the server charges (server/payments-core.js); retailers have their own threshold.
+  const shippingCost = isApprovedRetailer
+    ? (subtotal >= POLICY_SETTINGS.retailerFreeShippingAbove ? 0 : POLICY_SETTINGS.retailerShippingFee)
+    : (subtotal >= POLICY_SETTINGS.freeShippingAbove ? 0 : POLICY_SETTINGS.shippingFee);
   const orderTotal = subtotal + shippingCost;
 
-  const handleSubmitOrder = (e: React.FormEvent) => {
+  const cartPayload = () =>
+    cart.map((item) => ({
+      productId: item.productId,
+      variantSize: item.variantSize,
+      quantity: item.quantity,
+    }));
+
+  const customerPayload = () => ({
+    name: formData.name,
+    phone: formData.phone,
+    email: formData.email,
+    address: formData.address,
+    city: formData.city,
+    state: formData.state,
+    pincode: formData.pincode,
+  });
+
+  const finishOrder = (orderRef: string, info: { method: PaymentMethod; paymentId?: string }, serverTotal?: number) => {
+    setConfirmedOrderId(orderRef);
+    setConfirmedTotal(typeof serverTotal === 'number' ? serverTotal : orderTotal);
+    setPaymentInfo(info);
+    setStep('success');
+    clearCart();
+    showToast('Order Placed Successfully', `Your order #${orderRef} is confirmed!`);
+  };
+
+  const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPaymentError('');
+
     if (!formData.name || !formData.phone || !formData.address || !formData.pincode) {
       showToast('Incomplete Address', 'Please fill in all mandatory delivery fields.');
       return;
     }
 
-    const orderId = 'MZQ-' + Math.floor(100000 + Math.random() * 900000);
-    setConfirmedOrderId(orderId);
-    setStep('success');
-    clearCart();
-    showToast('Order Placed Successfully', `Your order #${orderId} is confirmed!`);
+    setIsProcessing(true);
+    try {
+      // ---- Cash on Delivery: server-validated order capture ----
+      if (formData.paymentMethod === 'cod') {
+        const res = await fetch('/api/orders/cod', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: cartPayload(), customer: customerPayload() }),
+        });
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok || !data?.ok) {
+          if (import.meta.env.DEV) {
+            // Local preview without the payment server - simulate so the flow can be tested.
+            finishOrder('MZQ-' + Math.floor(100000 + Math.random() * 900000), { method: 'cod' });
+            return;
+          }
+          throw new Error(data?.message || 'Could not place the order. Please try again.');
+        }
+        finishOrder(data.receipt, { method: 'cod' }, data.totals?.total);
+        return;
+      }
+
+      // ---- Online payment via Razorpay (UPI / Card / NetBanking) ----
+      const createRes = await fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: cartPayload(), customer: customerPayload() }),
+      });
+      const createData = await createRes.json().catch(() => null);
+
+      if (!createRes.ok || !createData?.ok) {
+        if (import.meta.env.DEV) {
+          // Local preview without configured Razorpay keys - simulate a paid order.
+          showToast('Demo Mode', 'Razorpay is not configured locally - simulating a successful payment.');
+          finishOrder('MZQ-' + Math.floor(100000 + Math.random() * 900000), {
+            method: formData.paymentMethod,
+            paymentId: 'demo_' + Date.now(),
+          });
+          return;
+        }
+        throw new Error(
+          createData?.message ||
+            'Online payment is not available right now. Please try again or choose Cash on Delivery.'
+        );
+      }
+
+      const scriptLoaded = await loadRazorpayCheckout();
+      if (!scriptLoaded || !window.Razorpay) {
+        throw new Error('Could not load Razorpay Checkout. Please check your internet connection and try again.');
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const razorpay = new window.Razorpay({
+          key: createData.keyId,
+          amount: createData.amount, // paise, calculated server-side
+          currency: createData.currency || 'INR',
+          name: 'Mazooq Foods',
+          description: `Order ${createData.receipt}`,
+          order_id: createData.orderId,
+          prefill: {
+            name: formData.name,
+            email: formData.email,
+            contact: formData.phone,
+          },
+          notes: { receipt: createData.receipt },
+          theme: { color: '#00290f' },
+          handler: async (response: any) => {
+            try {
+              // Server-side signature verification + Razorpay cross-check.
+              const verifyRes = await fetch('/api/razorpay/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  customer: customerPayload(),
+                  items: cartPayload(),
+                }),
+              });
+              const verifyData = await verifyRes.json().catch(() => null);
+              if (!verifyRes.ok || !verifyData?.ok) {
+                throw new Error(verifyData?.message || 'Payment verification failed. If money was deducted, contact info@mazooq.com.');
+              }
+              finishOrder(createData.receipt || verifyData.receipt || response.razorpay_order_id, {
+                method: formData.paymentMethod,
+                paymentId: response.razorpay_payment_id,
+              }, typeof verifyData.amount === 'number' ? verifyData.amount : undefined);
+              resolve();
+            } catch (err: any) {
+              reject(err);
+            }
+          },
+          modal: {
+            ondismiss: () =>
+              reject(new Error('Payment window closed before completion. You have not been charged — place the order again when ready.')),
+          },
+        });
+
+        razorpay.on('payment.failed', (resp: any) => {
+          reject(new Error(resp?.error?.description || 'Payment failed at the gateway. No amount was captured.'));
+        });
+
+        razorpay.open();
+      });
+    } catch (err: any) {
+      setPaymentError(err?.message || 'Payment could not be completed. Please try again.');
+      showToast('Payment Failed', err?.message || 'Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleClose = () => {
     setStep('details');
+    setPaymentError('');
     setIsCheckoutOpen(false);
   };
 
@@ -82,6 +265,7 @@ export const CheckoutModal: React.FC = () => {
                   <input
                     type="text"
                     required
+                    placeholder="e.g. Ahmed Rahman"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full bg-white border border-[#dfe4da] rounded-lg px-3 py-2 focus:outline-none focus:border-[#765b00]"
@@ -92,6 +276,7 @@ export const CheckoutModal: React.FC = () => {
                   <input
                     type="tel"
                     required
+                    placeholder="+91 XXXXX XXXXX"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full bg-white border border-[#dfe4da] rounded-lg px-3 py-2 focus:outline-none focus:border-[#765b00]"
@@ -101,6 +286,7 @@ export const CheckoutModal: React.FC = () => {
                   <label className="block text-[#414941] mb-1 font-medium">Email for Order & Invoice</label>
                   <input
                     type="email"
+                    placeholder="you@example.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full bg-white border border-[#dfe4da] rounded-lg px-3 py-2 focus:outline-none focus:border-[#765b00]"
@@ -111,6 +297,7 @@ export const CheckoutModal: React.FC = () => {
                   <input
                     type="text"
                     required
+                    placeholder="House / Flat, Street, Landmark"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     className="w-full bg-white border border-[#dfe4da] rounded-lg px-3 py-2 focus:outline-none focus:border-[#765b00]"
@@ -121,6 +308,7 @@ export const CheckoutModal: React.FC = () => {
                   <input
                     type="text"
                     required
+                    placeholder="City"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     className="w-full bg-white border border-[#dfe4da] rounded-lg px-3 py-2 focus:outline-none focus:border-[#765b00]"
@@ -132,6 +320,7 @@ export const CheckoutModal: React.FC = () => {
                     <input
                       type="text"
                       required
+                      placeholder="State"
                       value={formData.state}
                       onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                       className="w-full bg-white border border-[#dfe4da] rounded-lg px-3 py-2 focus:outline-none focus:border-[#765b00]"
@@ -142,6 +331,7 @@ export const CheckoutModal: React.FC = () => {
                     <input
                       type="text"
                       required
+                      placeholder="6-digit PIN"
                       value={formData.pincode}
                       onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
                       className="w-full bg-white border border-[#dfe4da] rounded-lg px-3 py-2 focus:outline-none focus:border-[#765b00]"
@@ -198,7 +388,7 @@ export const CheckoutModal: React.FC = () => {
                     />
                   </div>
                   <span className="text-[11px] text-[#414941] mt-2">
-                    GPay, PhonePe, Paytm, or BHIM instant scan
+                    GPay, PhonePe, Paytm, BHIM — secured by Razorpay
                   </span>
                 </label>
 
@@ -244,24 +434,56 @@ export const CheckoutModal: React.FC = () => {
                 ))}
               </div>
 
-              <div className="pt-2 border-t border-[#ebefe6] flex justify-between font-bold text-sm text-[#00290f]">
-                <span>Total Payable Amount</span>
-                <span className="text-base text-[#765b00]">₹{orderTotal}</span>
+              <div className="pt-2 border-t border-[#ebefe6] space-y-1">
+                <div className="flex justify-between text-[#717970]">
+                  <span>Subtotal</span>
+                  <span>₹{subtotal}</span>
+                </div>
+                <div className="flex justify-between text-[#717970]">
+                  <span>Shipping {shippingCost === 0 ? `(Free over ₹${(isApprovedRetailer ? POLICY_SETTINGS.retailerFreeShippingAbove : POLICY_SETTINGS.freeShippingAbove).toLocaleString('en-IN')})` : ''}</span>
+                  <span>{shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}</span>
+                </div>
+                <div className="flex justify-between font-bold text-sm text-[#00290f] pt-1">
+                  <span>Total Payable Amount</span>
+                  <span className="text-base text-[#765b00]">₹{orderTotal}</span>
+                </div>
               </div>
             </div>
+
+            {paymentError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs">
+                {paymentError}
+              </div>
+            )}
 
             {/* Submit CTA */}
             <button
               type="submit"
-              className="w-full py-4 bg-[#f2c027] hover:bg-[#ffdf93] text-[#181d17] font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isProcessing}
+              className={`w-full py-4 font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 ${
+                isProcessing
+                  ? 'bg-stone-300 text-stone-500 cursor-wait'
+                  : 'bg-[#f2c027] hover:bg-[#ffdf93] text-[#181d17] cursor-pointer'
+              }`}
             >
-              <span>Confirm & Place Order (₹{orderTotal})</span>
+              <span>
+                {isProcessing
+                  ? 'Processing...'
+                  : formData.paymentMethod === 'cod'
+                    ? `Confirm & Place Order (₹${orderTotal})`
+                    : `Pay ₹${orderTotal} Securely`}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
-            <div className="flex items-center justify-center gap-2 text-xs text-[#717970]">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>100% Genuine Origin Guarantee • Direct Fresh Packaging</span>
+            <div className="flex flex-col items-center gap-1.5 text-xs text-[#717970]">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>100% Genuine Origin Guarantee • Direct Fresh Packaging</span>
+              </div>
+              <span className="text-[11px]">
+                Online payments are processed securely by Razorpay. Mazooq never stores your card details.
+              </span>
             </div>
           </form>
         ) : (
@@ -278,7 +500,8 @@ export const CheckoutModal: React.FC = () => {
                 Your Order #{confirmedOrderId} is Confirmed!
               </h2>
               <p className="text-xs text-[#414941] mt-2 max-w-md mx-auto leading-relaxed">
-                We have notified our blending facility in Amingaon, Guwahati & distribution center in Palakkad. You will receive an SMS and email notification once your parcel is packed and dispatched.
+                Our team has been notified and will start packing your order.
+                {formData.email ? ` A confirmation has been sent to ${formData.email}.` : ''} We'll share tracking details once your parcel is dispatched.
               </p>
             </div>
 
@@ -296,19 +519,36 @@ export const CheckoutModal: React.FC = () => {
               </div>
               <div className="flex justify-between py-1 border-b border-[#ebefe6]">
                 <span className="text-[#717970]">Payment Mode:</span>
-                <span className="font-semibold text-[#181d17] uppercase">{formData.paymentMethod}</span>
+                <span className="font-semibold text-[#181d17]">
+                  {paymentInfo ? PAYMENT_MODE_LABEL[paymentInfo.method] : '—'}
+                </span>
               </div>
+              {paymentInfo?.paymentId && (
+                <div className="flex justify-between py-1 border-b border-[#ebefe6]">
+                  <span className="text-[#717970]">Payment ID:</span>
+                  <span className="font-mono text-[11px] text-[#181d17]">{paymentInfo.paymentId}</span>
+                </div>
+              )}
               <div className="flex justify-between py-1 border-b border-[#ebefe6]">
                 <span className="text-[#717970]">Estimated Delivery:</span>
-                <span className="font-semibold text-emerald-700">3-4 Business Days</span>
+                <span className="font-semibold text-emerald-700">{POLICY_SETTINGS.deliveryEstimate}</span>
               </div>
               <div className="flex justify-between py-1.5 font-bold text-sm text-[#00290f]">
                 <span>Total Amount:</span>
-                <span className="text-[#765b00]">₹{orderTotal}</span>
+                <span className="text-[#765b00]">₹{confirmedTotal.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <a
+                href={whatsappLink(`Hi Mazooq Foods, I have a question about my order #${confirmedOrderId}.`)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 bg-[#25D366] text-white rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center gap-2 hover:bg-[#1ebe5a]"
+              >
+                <WhatsAppIcon className="w-5 h-5" />
+                <span>WhatsApp Us</span>
+              </a>
               <button
                 onClick={() => window.print()}
                 className="px-4 py-2.5 bg-white border border-[#dfe4da] text-[#181d17] rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center gap-2 hover:bg-[#ebefe6]"
