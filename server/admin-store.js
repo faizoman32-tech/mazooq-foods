@@ -1,16 +1,21 @@
 // server/admin-store.js
 // Data storage layer for the Admin Panel.
 //
-// Two backends:
-//   1. Supabase (production)  - when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set.
-//   2. Local file (development) - data/admin-store.json. Used automatically when Supabase
-//      is not configured, or when ADMIN_STORE=file. Great for local testing.
+// Three backends (choose with the ADMIN_STORE environment variable):
+//   1. firestore - Google Cloud Firestore + Cloud Storage (server/firestore-store.js).
+//                  Default on Google Cloud Run. This is the production database.
+//   2. supabase  - Supabase (kept as a fallback). Needs SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.
+//   3. file      - Local file data/admin-store.json. Default on your own computer.
 //
-// All Supabase calls use the SERVICE ROLE key and must only ever run server-side.
+// If ADMIN_STORE is not set: Cloud Run / FIRESTORE_PROJECT_ID -> firestore,
+// else Supabase settings present -> supabase, else -> file.
+//
+// All database calls run server-side only.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as fsx from './firestore-store.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(here, '..');
@@ -19,15 +24,27 @@ const storeFile = join(dataDir, 'admin-store.json');
 const uploadsDir = join(dataDir, 'uploads');
 const productsJson = join(projectRoot, 'src/data/products.generated.json');
 
-export function getSupabase() {
+function supabaseSettings() {
   const url = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (url && key && process.env.ADMIN_STORE !== 'file') return { url, key };
-  return null;
+  return url && key ? { url, key } : null;
 }
 
+/** Which database is in use: 'firestore' | 'supabase' | 'file'. */
 export function storeMode() {
-  return getSupabase() ? 'supabase' : 'file';
+  const chosen = String(process.env.ADMIN_STORE || '').trim().toLowerCase();
+  if (chosen === 'file') return 'file';
+  if (chosen === 'firestore') return 'firestore';
+  if (chosen === 'supabase') return supabaseSettings() ? 'supabase' : 'file';
+  if (process.env.FIRESTORE_PROJECT_ID || process.env.K_SERVICE) return 'firestore'; // K_SERVICE = running on Cloud Run
+  if (supabaseSettings()) return 'supabase';
+  return 'file';
+}
+
+const useFirestore = () => storeMode() === 'firestore';
+
+export function getSupabase() {
+  return storeMode() === 'supabase' ? supabaseSettings() : null;
 }
 
 async function supa(query, options = {}) {
@@ -83,6 +100,7 @@ function fileProducts(s) {
 // Products
 // ---------------------------------------------------------------------------
 export async function listProducts() {
+  if (useFirestore()) return fsx.listProducts();
   if (getSupabase()) {
     const rows = await supa('products?select=*&order=sort_index.asc,updated_at.desc');
     return (rows || []).map((r) => ({
@@ -96,6 +114,7 @@ export async function listProducts() {
 }
 
 export async function upsertProduct(product) {
+  if (useFirestore()) return fsx.upsertProduct(product);
   if (!product || !product.id || !product.name) throw new Error('Product id and name are required');
   if (getSupabase()) {
     const { hidden, sortIndex, ...data } = product;
@@ -124,6 +143,7 @@ export async function upsertProduct(product) {
 }
 
 export async function deleteProduct(id) {
+  if (useFirestore()) return fsx.deleteProduct(id);
   if (!id) throw new Error('Product id required');
   if (getSupabase()) {
     await supa(`products?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -139,6 +159,7 @@ export async function deleteProduct(id) {
 // Orders
 // ---------------------------------------------------------------------------
 export async function addOrder(order) {
+  if (useFirestore()) return fsx.addOrder(order);
   if (getSupabase()) {
     const row = {
       receipt: order.receipt || null,
@@ -171,6 +192,7 @@ export async function addOrder(order) {
 }
 
 export async function listOrders() {
+  if (useFirestore()) return fsx.listOrders();
   if (getSupabase()) {
     const rows = await supa('orders?select=*&order=created_at.desc&limit=200');
     return rows || [];
@@ -185,6 +207,7 @@ export async function listOrders() {
  * @param {string} email
  */
 export async function listOrdersByEmail(email) {
+  if (useFirestore()) return fsx.listOrdersByEmail(email);
   const e = String(email || '').trim().toLowerCase();
   if (!e) return [];
   if (getSupabase()) {
@@ -202,6 +225,7 @@ export async function listOrdersByEmail(email) {
 }
 
 export async function updateOrderStatus(id, status) {
+  if (useFirestore()) return fsx.updateOrderStatus(id, status);
   if (!id || !status) throw new Error('Order id and status are required');
   if (getSupabase()) {
     await supa(`orders?id=eq.${encodeURIComponent(id)}`, {
@@ -221,6 +245,7 @@ export async function updateOrderStatus(id, status) {
 // Retailer leads
 // ---------------------------------------------------------------------------
 export async function addLead(data) {
+  if (useFirestore()) return fsx.addLead(data);
   if (getSupabase()) {
     await supa('leads', {
       method: 'POST',
@@ -237,6 +262,7 @@ export async function addLead(data) {
 }
 
 export async function listLeads() {
+  if (useFirestore()) return fsx.listLeads();
   if (getSupabase()) {
     const rows = await supa('leads?select=*&order=created_at.desc&limit=200');
     return rows || [];
@@ -254,6 +280,7 @@ export async function saveUpload({ filename, contentType, base64 }) {
   const name = `${Date.now()}-${safe || 'image.jpg'}`;
   const buffer = Buffer.from(base64, 'base64');
   if (buffer.length > 4 * 1024 * 1024) throw new Error('Image too large (max 4 MB)');
+  if (useFirestore()) return fsx.saveUpload({ name, contentType, buffer });
 
   const { url, key } = getSupabase() || {};
   if (url && key) {
@@ -297,6 +324,7 @@ function mapUserRow(r) {
 }
 
 export async function createUser({ email, passwordHash, name, phone, role, status, retailer }) {
+  if (useFirestore()) return fsx.createUser({ email, passwordHash, name, phone, role, status, retailer });
   if (getSupabase()) {
     const rows = await supa('users', {
       method: 'POST',
@@ -319,6 +347,7 @@ export async function createUser({ email, passwordHash, name, phone, role, statu
 }
 
 export async function findUserByEmail(email) {
+  if (useFirestore()) return fsx.findUserByEmail(email);
   if (getSupabase()) {
     const rows = await supa(`users?email=eq.${encodeURIComponent(email)}&limit=1`);
     return rows && rows[0] ? mapUserRow(rows[0]) : null;
@@ -328,6 +357,7 @@ export async function findUserByEmail(email) {
 }
 
 export async function findUserById(id) {
+  if (useFirestore()) return fsx.findUserById(id);
   if (getSupabase()) {
     const rows = await supa(`users?id=eq.${encodeURIComponent(id)}&limit=1`);
     return rows && rows[0] ? mapUserRow(rows[0]) : null;
@@ -337,6 +367,7 @@ export async function findUserById(id) {
 }
 
 export async function listRetailers() {
+  if (useFirestore()) return fsx.listRetailers();
   if (getSupabase()) {
     const rows = await supa('users?role=eq.RETAILER&order=created_at.desc');
     return (rows || []).map(mapUserRow);
@@ -345,6 +376,7 @@ export async function listRetailers() {
 }
 
 export async function updateUserStatus(id, status) {
+  if (useFirestore()) return fsx.updateUserStatus(id, status);
   if (getSupabase()) {
     await supa(`users?id=eq.${encodeURIComponent(id)}`, {
       method: 'PATCH',
@@ -363,6 +395,7 @@ export async function updateUserStatus(id, status) {
 }
 
 export async function createSession({ token, userId, expiresAt }) {
+  if (useFirestore()) return fsx.createSession({ token, userId, expiresAt });
   if (getSupabase()) {
     await supa('sessions', {
       method: 'POST',
@@ -380,6 +413,7 @@ export async function createSession({ token, userId, expiresAt }) {
 
 export async function getSession(token) {
   if (!token) return null;
+  if (useFirestore()) return fsx.getSession(token);
   if (getSupabase()) {
     const rows = await supa(`sessions?token=eq.${encodeURIComponent(token)}&limit=1`);
     const r = rows && rows[0];
@@ -395,6 +429,7 @@ export async function getSession(token) {
 }
 
 export async function deleteSession(token) {
+  if (useFirestore()) return fsx.deleteSession(token);
   if (getSupabase()) {
     await supa(`sessions?token=eq.${encodeURIComponent(token)}`, { method: 'DELETE' });
     return;

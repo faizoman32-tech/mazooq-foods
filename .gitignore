@@ -7,5 +7,6 @@ coverage/
 .env*
 !.env.example
 
-data/
+# private local database (accounts, orders) - root folder only
+/data/
 

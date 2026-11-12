@@ -190,7 +190,7 @@ export default function AdminApp() {
           )}
           {serverStatus?.store === 'file' && (
             <div className="p-3 bg-sky-50 border border-sky-200 rounded-lg text-sky-900 text-xs">
-              Local file store active hai (development mode). Production ke liye Supabase connect karein - <b>ADMIN-SETUP-GUIDE.md</b> dekhein.
+              Local file store active hai (development mode). Production ke liye Google Cloud Firestore connect karein - <b>GOOGLE-CLOUD-GUIDE.md</b> dekhein.
             </div>
           )}
           <form onSubmit={handleLogin} className="space-y-3">
@@ -312,7 +312,7 @@ export default function AdminApp() {
             <div>
               <h1 className="font-serif text-lg font-bold leading-tight">Mazooq Admin</h1>
               <p className="text-[10px] text-[#ffdf93] uppercase tracking-wider">
-                Store: {serverStatus?.store === 'supabase' ? 'Supabase (live)' : 'Local file (dev)'}
+                Store: {serverStatus?.store === 'firestore' ? 'Google Firestore (live)' : serverStatus?.store === 'supabase' ? 'Supabase (live)' : 'Local file (dev)'}
               </p>
             </div>
           </div>

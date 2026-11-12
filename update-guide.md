@@ -113,3 +113,9 @@ Ab products **Admin Panel** se manage hote hain (add/edit/delete + price + photo
 
 - Each page has its own address (`/shop`, `/shop/tea`, `/our-story`, `/contact`, ...) — see `src/routes.ts`.
 - Adding a page: add it to `PageView` + `PAGE_PATHS` in `src/routes.ts`, render it in `src/App.tsx`, and add it to `public/sitemap.xml`.
+
+## Database & hosting (Google Cloud)
+
+- Production: **Google Cloud Run + Firestore** - full steps in `GOOGLE-CLOUD-GUIDE.md`.
+- Database code: `server/admin-store.js` (chooses the database) and `server/firestore-store.js` (Firestore).
+- Backup: Supabase still works with `ADMIN_STORE=supabase`; the pre-Firestore code is on GitHub branch `backup/supabase-version`.

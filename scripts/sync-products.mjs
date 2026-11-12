@@ -1,5 +1,7 @@
 // scripts/sync-products.mjs
 // Refreshes src/data/products.generated.json BEFORE builds. Sources (in order):
+//   0. Firestore         - when ADMIN_STORE=firestore or FIRESTORE_PROJECT_ID is set
+//                          (read-only; skipped quietly if Google credentials aren't available).
 //   1. Supabase          - when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are configured.
 //   2. Local admin store - data/admin-store.json (file mode / local development).
 //   3. products.ts       - fallback so a fresh checkout still builds cleanly.
@@ -27,8 +29,31 @@ function clean(list) {
       delete clone.__hidden;
       delete clone.__sortIndex;
       delete clone.__updatedAt;
+      delete clone.updatedAt;
       return clone;
     });
+}
+
+async function fromFirestore() {
+  const wanted = process.env.ADMIN_STORE === 'firestore' || (process.env.FIRESTORE_PROJECT_ID && process.env.ADMIN_STORE !== 'file');
+  if (!wanted) return null;
+  try {
+    const { Firestore } = await import('@google-cloud/firestore');
+    const db = new Firestore({
+      projectId: process.env.FIRESTORE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || undefined,
+      databaseId: process.env.FIRESTORE_DATABASE_ID || undefined,
+    });
+    const snap = await Promise.race([
+      db.collection('products').get(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timed out after 20s')), 20000)),
+    ]);
+    await db.terminate().catch(() => {});
+    const list = snap.docs.map((d) => d.data());
+    return list.length ? clean(list) : null;
+  } catch (e) {
+    console.warn(`• Firestore not reachable at build time (${e?.message || 'error'}) - using local product data`);
+    return null;
+  }
 }
 
 async function fromSupabase() {
@@ -80,11 +105,12 @@ function fromTsSource() {
 }
 
 try {
-  const supa = process.env.ADMIN_STORE !== 'file' ? await fromSupabase() : null;
-  const products = supa || fromFileStore() || fromTsSource();
+  const firestore = await fromFirestore();
+  const supa = !firestore && !['file', 'firestore'].includes(process.env.ADMIN_STORE) ? await fromSupabase() : null;
+  const products = firestore || supa || fromFileStore() || fromTsSource();
   if (products && products.length) {
     writeFileSync(target, JSON.stringify(products, null, 2) + '\n', 'utf8');
-    console.log(`✓ products synced: ${products.length} (${supa ? 'Supabase' : fromFileStore() ? 'local admin store' : 'products.ts fallback'})`);
+    console.log(`✓ products synced: ${products.length} (${firestore ? 'Firestore' : supa ? 'Supabase' : fromFileStore() ? 'local admin store' : 'products.ts fallback'})`);
   } else {
     console.log('• no admin data source configured - keeping existing products JSON');
   }
