@@ -50,3 +50,7 @@ server.js       # Express server (site + APIs) for Render/VPS
 api/            # Vercel serverless functions (same APIs)
 scripts/        # build-catalog.mjs (prices sync)
 ```
+
+## Working together
+
+This project is shared. Read [CONTRIBUTING.md](CONTRIBUTING.md) before making changes: work on a branch, open a Pull Request, never push straight to `main` (it is the live site).
